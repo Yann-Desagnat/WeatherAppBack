@@ -1,27 +1,43 @@
+
 // Import des modules
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path'); // Module pour manipuler les chemins de fichier
 
+
 // Initialisation de l'application Express
 const app = express();
 const PORT = 3000;
+
 
 // Middleware pour parser le corps des requêtes
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+
 // Définition du répertoire des fichiers statiques
-app.use(express.static(path.join(__dirname, 'public')));
+// app.use(express.static('C:\wamp64\www\projet_javascript\Jojo_Yaya_Meme_Front'));
+
+
+// CORS
+const cors = require("cors");
+app.use(cors({ origin: "*", methods: "GET,HEAD,PUT,PATCH,POST,DELETE"
+}));
+
+
+
 
 // Base de données simple en mémoire
 let users = [];
 let searchHistory = [];
 
 
+
+
 // Route pour l'inscription des utilisateurs
 app.post('/register', (req, res) => {
     const { username, email, password } = req.body;
+
 
     // Vérification si l'utilisateur existe déjà
     const existingUser = users.find(user => user.email === email);
@@ -29,19 +45,24 @@ app.post('/register', (req, res) => {
         return res.status(400).json({ message: 'Cet utilisateur existe déjà.' });
     }
 
+
     // Création d'un nouvel utilisateur sans hacher le mot de passe
     const newUser = { username, email, password };
     users.push(newUser);
 
+
     res.status(201).json({ message: 'Utilisateur inscrit avec succès.' });
 });
+
 
 // Route pour la connexion des utilisateurs
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
 
+
     // Recherche de l'utilisateur par email
     const user = users.find(user => user.email === email);
+
 
     // Vérification si l'utilisateur existe et si le mot de passe correspond
     if (user && user.password === password) {
@@ -55,19 +76,25 @@ app.post('/login', (req, res) => {
 
 
 
+
+
+
 // Route pour récupérer la liste des utilisateurs
 app.get('/getUsers', (req, res) => {
     res.json(users);
 });
+
 
 // Démarrage du serveur
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur le port ${PORT}`);
 });
 
+
 // Route pour supprimer un utilisateur
 app.delete('/deleteUser', (req, res) => {
     const { username } = req.body;
+
 
     // Recherche de l'utilisateur dans la liste
     const index = users.findIndex(user => user.username === username);
@@ -80,9 +107,11 @@ app.delete('/deleteUser', (req, res) => {
     }
 });
 
+
 // Route pour mettre à jour un utilisateur
 app.put('/updateUser', (req, res) => {
     const { username, newUsername, newEmail } = req.body;
+
 
     // Recherche de l'utilisateur dans la liste
     const userToUpdate = users.find(user => user.username === username);
@@ -95,6 +124,7 @@ app.put('/updateUser', (req, res) => {
         res.status(404).json({ message: 'Utilisateur non trouvé.' });
     }
 });
+
 
 // Route pour enregistrer une ville dans l'historique
 // Route pour enregistrer une ville et ses détails dans l'historique
@@ -112,6 +142,3 @@ app.post('/weather/history', (req, res) => {
 app.get('/weather/history', (req, res) => {
     res.status(200).json(searchHistory); // Renvoie l'historique avec les détails
 });
-
-
-
