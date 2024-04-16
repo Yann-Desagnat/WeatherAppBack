@@ -127,6 +127,7 @@ app.put('/updateUser', (req, res) => {
 
 
 // Route pour enregistrer une ville dans l'historique
+
 // Route pour enregistrer une ville et ses détails dans l'historique
 app.post('/weather/history', (req, res) => {
     const { city, details } = req.body; // Modifier pour accepter les détails
