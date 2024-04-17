@@ -28,5 +28,5 @@ app.get('/weather/history', (req, res) => {
 
 // Démarrage du serveur
 app.listen(PORT, () => {
-    console.log(`Serveur démarré sur le port ${PORT}`);
+    console.log(`Serveur démarrée sur le port ${PORT}`);
 });
