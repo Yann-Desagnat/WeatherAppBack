@@ -2,7 +2,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path'); // Module pour manipuler les chemins de fichier
-
+const session = require('express-session');
 
 // Initialisation de l'application Express
 const app = express();
@@ -12,7 +12,11 @@ const PORT = 3000;
 // Middleware pour parser le corps des requêtes
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
+app.use(session({
+    secret: 'secret', // Une clé secrète pour signer les cookies de session
+    resave: false,
+    saveUninitialized: true
+}));
 
 // Définition du répertoire des fichiers statiques
 // app.use(express.static('C:\wamp64\www\projet_javascript\Jojo_Yaya_Meme_Front'));
@@ -24,13 +28,9 @@ app.use(cors({ origin: "*", methods: "GET,HEAD,PUT,PATCH,POST,DELETE"
 }));
 
 
-
-
 // Base de données simple en mémoire
 let users = [];
 let searchHistory = [];
-
-
 
 
 // Route pour l'inscription des utilisateurs
@@ -66,15 +66,14 @@ app.post('/login', (req, res) => {
     // Vérification si l'utilisateur existe et si le mot de passe correspond
     if (user && user.password === password) {
         // Utilisateur authentifié avec succès
+        // Définir le type d'utilisateur sur "connecté"
+        req.session.userType = 'connecté';
         res.status(200).json({ message: 'Connexion réussie.' });
     } else {
         // Échec de l'authentification
         res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
     }
 });
-
-
-
 
 
 
@@ -131,8 +130,8 @@ app.put('/updateUser', (req, res) => {
 app.post('/weather/history', (req, res) => {
     const { city, details } = req.body; // Modifier pour accepter les détails
     // Assurez-vous que 'details' inclut les informations météo que vous souhaitez stocker, par exemple température, description, etc.
-    searchHistory.push({ city, details }); // Stocke un objet contenant la ville et ses détails
-    console.log('Ville et détails météo ajoutés à l\'historique :', city, details);
+    searchHistory.push({ city, details,createdAt, userType }); // Stocke un objet contenant la ville et ses détails
+    console.log('Ville et détails météo ajoutés à l\'historique :', city, details, createdAt, userType );
     res.status(200).send('Ville et détails météo ajoutés à l\'historique');
 });
 

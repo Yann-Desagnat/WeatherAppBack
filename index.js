@@ -3,6 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const pool = require('./db_connexion'); // Import du module pour la connexion à la base de données
 const bcrypt = require('bcrypt');
+const session = require('express-session');
 
 // Initialisation de l'application Express
 const app = express();
@@ -11,6 +12,11 @@ const PORT = 3000;
 // Middleware pour parser le corps des requêtes
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(session({
+    secret: 'secret', // Une clé secrète pour signer les cookies de session
+    resave: false,
+    saveUninitialized: true
+}));
 
 // CORS
 const cors = require("cors");
@@ -25,9 +31,12 @@ app.post('/weather/history', (req, res) => {
     const { city, details } = req.body;
 
     const { temp, description } = details;
-   
+    const createdAt = new Date();
+
+    const userType = req.session.userType || 'anonymous';
+    
     const query = "INSERT INTO search_history (city, temperature, description, created_at, userType) VALUES (?, ?, ?, ?, ?)";
-    const values = [city, temp, description];
+    const values = [city, temp, description, createdAt, userType];
 
     pool.query(query, values, (err, result) => {
         if (err) {
@@ -42,7 +51,7 @@ app.post('/weather/history', (req, res) => {
 
 // Route pour récupérer l'historique des recherches
 app.get('/weather/history', (req, res) => {
-    pool.query('SELECT city, temperature, description FROM search_history', (error, results, fields) => {
+    pool.query('SELECT city, temperature, description, DATE_FORMAT(created_at, "%d/%m/%Y %H:%i") AS created_at, userType FROM search_history', (error, results, fields) => {
         if (error) {
             console.error('Erreur lors de la récupération des données météo:', error);
             res.status(500).json({ message: 'Erreur lors de la récupération des données météo' });
@@ -52,9 +61,10 @@ app.get('/weather/history', (req, res) => {
     });
 });
 
-// Route pour récupérer les données météo depuis la base de données
+//pour la gestion des favoris merci de ne pas supprimer
+//Route pour récupérer les données météo depuis la base de données
 app.get('/weather/data', (req, res) => {
-    pool.query('SELECT city, temperature, description FROM seatch_history', (error, results, fields) => {
+    pool.query('SELECT * FROM search_history', (error, results, fields) => {
         if (error) {
             console.error('Erreur lors de la récupération des données météo:', error);
             res.status(500).json({ message: 'Erreur lors de la récupération des données météo' });
@@ -62,7 +72,7 @@ app.get('/weather/data', (req, res) => {
             res.status(200).json(results); // Renvoie les données météo en tant que réponse JSON
         }
     });
-});
+}); 
 
 // Démarrage du serveur
 app.listen(PORT, () => {
