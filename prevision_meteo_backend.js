@@ -9,6 +9,7 @@ const PORT = 3000;
 // Middleware pour parser le corps des requêtes
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
 // Base de données simple en mémoire
 let searchHistory = [];

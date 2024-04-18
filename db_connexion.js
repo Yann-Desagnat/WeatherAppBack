@@ -6,7 +6,7 @@ const pool = mysql.createPool({
     user: "melvin", // Utilisateur de BD
     password: "12Melvin", // Mot de passe
     database: "a2js_db", // Nom de la BD
-    host : "127.0.0.1",
+    host : "192.168.1.36",
     port: "3308",
 });
 
