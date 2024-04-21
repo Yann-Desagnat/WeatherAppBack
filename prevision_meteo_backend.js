@@ -5,6 +5,7 @@ const pool = require('./db_connexion');
 
 // Base de données simple en mémoire
 let searchHistory = [];
+let datamap = [];
 
 // Route pour enregistrer une ville et ses détails dans l'historique
 router.post('/weather/history', (req, res) => {
@@ -35,6 +36,8 @@ router.get('/weather/history', (req, res) => {
         }
     });
 });
+
+
 
 module.exports = router; 
 

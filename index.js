@@ -6,11 +6,11 @@ const cors = require("cors");
 const pool = require('./db_connexion');
 const weatherRoutes = require('./prevision_meteo_backend');
 
-
 // Initialisation de l'application Express
 const app = express();
 const PORT = 3000;
 
+// Configuration des middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({ origin: "*", methods: "GET,HEAD,PUT,PATCH,POST,DELETE" }));
@@ -18,19 +18,27 @@ app.use(session({
     secret: 'secret',
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: false }
+    cookie: { secure: true },
+    sameSite: 'lax'
 }));
-app.use('/api', weatherRoutes);
+
 // Base de données simple en mémoire pour les utilisateurs
 let users = [];
 
+// Routes
+app.use('/api', weatherRoutes);
+
+app.get('/', (req, res) => {
+    res.status(200).send('Le serveur est opérationnel');
+});
+
 app.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
     const existingUser = users.find(user => user.email === email);
     if (existingUser) {
         return res.status(400).json({ message: 'Cet utilisateur existe déjà.' });
     }
+    const hashedPassword = await bcrypt.hash(password, 10);
     users.push({ username, email, password: hashedPassword });
     res.status(201).json({ message: 'Utilisateur inscrit avec succès.' });
 });
@@ -69,111 +77,41 @@ app.put('/updateUser', (req, res) => {
     }
 });
 
+
+
+// recuperer data_map info sur les country
+app.post('/weather/data_map', (req, res) => {
+    const { latitude, longitude, locationName, userId} = req.body;
+
+    
+    console.log("Données reçues:", latitude, longitude, locationName, userId);
+
+    const query = "INSERT INTO dataMap (latitude, longitude, locationName, userId) VALUES (?, ?, ?, ?)";
+    const values = [latitude, longitude, locationName, userId];
+    pool.query(query, values, (err, result) => {
+        if (err) {
+            console.error('Erreur lors de l\'insertion des données datamap:', err);
+            res.status(500).send('Erreur lors de l\'insertion des données datamap');
+        } else {
+            res.status(200).json({ message: "Données reçues et traitées avec succès" });
+        }
+    });
+});
+
+
+
+// Route pour récupérer data
+app.get('/weather/data_map', (req, res) => {
+    pool.query('SELECT latitude, longitude, locationName, userId FROM dataMap', (error, results) => {
+        if (error) {
+            console.error('Erreur lors de la récupération des données datamap:', error);
+            res.status(500).json({ message: 'Erreur lors de la récupération des données datamap' });
+        } else {
+            res.status(200).json(results);
+        }
+    });
+});
+// Démarrage du serveur sur le port spécifié
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur le port ${PORT}`);
 });
-
-// Définition du répertoire des fichiers statiques
-// app.use(express.static('C:\wamp64\www\projet_javascript\Jojo_Yaya_Meme_Front'));
-
-
-/*
-const cors = require("cors");
-app.use(cors({ origin: "*", methods: "GET,HEAD,PUT,PATCH,POST,DELETE"
-}));
-
-
-// Base de données simple en mémoire
-let users = [];
-let searchHistory = [];
-
-
-// Route pour l'inscription des utilisateurs
-app.post('/register', (req, res) => {
-    const { username, email, password } = req.body;
-
-
-    // Vérification si l'utilisateur existe déjà
-    const existingUser = users.find(user => user.email === email);
-    if (existingUser) {
-        return res.status(400).json({ message: 'Cet utilisateur existe déjà.' });
-    }
-
-
-    // Création d'un nouvel utilisateur sans hacher le mot de passe
-    const newUser = { username, email, password };
-    users.push(newUser);
-
-
-    res.status(201).json({ message: 'Utilisateur inscrit avec succès.' });
-});
-
-
-// Route pour la connexion des utilisateurs
-app.post('/login', (req, res) => {
-    const { email, password } = req.body;
-
-
-    // Recherche de l'utilisateur par email
-    const user = users.find(user => user.email === email);
-
-
-    // Vérification si l'utilisateur existe et si le mot de passe correspond
-    if (user && user.password === password) {
-        // Utilisateur authentifié avec succès
-        // Définir le type d'utilisateur sur "connecté"
-        req.session.userType = 'connecté';
-        res.status(200).json({ message: 'Connexion réussie.' });
-    } else {
-        // Échec de l'authentification
-        res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
-    }
-});
-
-
-
-// Route pour récupérer la liste des utilisateurs
-app.get('/getUsers', (req, res) => {
-    res.json(users);
-});
-
-
-// Démarrage du serveur
-app.listen(PORT, () => {
-    console.log(`Serveur démarré sur le port ${PORT}`);
-}); 
-
-
-// Route pour supprimer un utilisateur
-app.delete('/deleteUser', (req, res) => {
-    const { username } = req.body;
-
-
-    // Recherche de l'utilisateur dans la liste
-    const index = users.findIndex(user => user.username === username);
-    if (index !== -1) {
-        // Suppression de l'utilisateur s'il est trouvé
-        users.splice(index, 1);
-        res.status(200).json({ message: 'Utilisateur supprimé avec succès.' });
-    } else {
-        res.status(404).json({ message: 'Utilisateur non trouvé.' });
-    }
-});
-
-
-// Route pour mettre à jour un utilisateur
-app.put('/updateUser', (req, res) => {
-    const { username, newUsername, newEmail } = req.body;
-
-
-    // Recherche de l'utilisateur dans la liste
-    const userToUpdate = users.find(user => user.username === username);
-    if (userToUpdate) {
-        // Mise à jour des attributs de l'utilisateur
-        userToUpdate.username = newUsername || userToUpdate.username;
-        userToUpdate.email = newEmail || userToUpdate.email;
-        res.status(200).json({ message: 'Utilisateur mis à jour avec succès.' });
-    } else {
-        res.status(404).json({ message: 'Utilisateur non trouvé.' });
-    }
-}); */
