@@ -144,9 +144,79 @@ app.get('/weather/history', (req, res) => {
     });
 });
 
+// Route pour récupérer les pays les plus cliqués
+app.get('/weather/most_clicked_countries', (req, res) => {
+    // Récupérer les données de /weather/data_map
+    pool.query('SELECT locationName FROM dataMap', (error, results) => {
+        if (error) {
+            console.error('Erreur lors de la récupération des données datamap:', error);
+            res.status(500).json({ message: 'Erreur lors de la récupération des données datamap' });
+        } else {
+            // Compter les clics par pays
+            const countryCounts = {};
+            results.forEach(row => {
+                const country = row.locationName;
+                countryCounts[country] = (countryCounts[country] || 0) + 1;
+            });
+
+            // Convertir les résultats en tableau de pays et clics
+            const mostClickedCountries = Object.entries(countryCounts)
+                .sort((a, b) => b[1] - a[1]) // Trier par nombre de clics décroissant
+                .slice(0, 3); // Limiter aux 3 pays les plus cliqués
+
+            res.status(200).json(mostClickedCountries);
+        }
+    });
+});
 
 
 
+
+
+// Route pour récupérer les villes les plus cliquées
+app.get('/weather/most_clicked_cities', (req, res) => {
+    // Récupérer les données de /weather/history
+    pool.query('SELECT city FROM search_history', (error, results) => {
+        if (error) {
+            console.error('Erreur lors de la récupération des données historiques:', error);
+            res.status(500).json({ message: 'Erreur lors de la récupération des données historiques' });
+        } else {
+            // Compter les clics par ville
+            const cityCounts = {};
+            results.forEach(row => {
+                const city = row.city;
+                cityCounts[city] = (cityCounts[city] || 0) + 1;
+            });
+
+            // Convertir les résultats en tableau de villes et clics
+            const mostClickedCities = Object.entries(cityCounts)
+                .sort((a, b) => b[1] - a[1]) // Trier par nombre de clics décroissant
+                .slice(0, 3); // Limiter aux 3 villes les plus cliquées
+
+            res.status(200).json(mostClickedCities);
+        }
+    });
+});
+
+// Route pour récupérer les favoris de l'utilisateur connecté
+app.get('/favoris', (req, res) => {
+    // Vérifier si l'utilisateur est connecté
+    if (req.session.userType === 'connecté') {
+        // Récupérer les favoris de l'utilisateur depuis la base de données
+        const userId = req.session.userId; // Supposons que l'ID de l'utilisateur soit stocké dans la session
+        pool.query('SELECT * FROM favoris WHERE userId = ?', [userId], (error, results) => {
+            if (error) {
+                console.error('Erreur lors de la récupération des favoris de l\'utilisateur :', error);
+                res.status(500).json({ message: 'Erreur lors de la récupération des favoris de l\'utilisateur' });
+            } else {
+                res.status(200).json(results);
+            }
+        });
+    } else {
+        // L'utilisateur n'est pas connecté, renvoyer une erreur non autorisée
+        res.status(401).json({ message: 'Vous devez être connecté pour accéder à vos favoris' });
+    }
+});
 
 // Démarrage du serveur sur le port spécifié
 app.listen(PORT, () => {
