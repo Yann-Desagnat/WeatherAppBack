@@ -1,20 +1,25 @@
-const mysql = require("mysql");
+const mysql = require('mysql');
 const pool = mysql.createPool({
-    
-    // host: "localhost", // Serveur de BD
-   
-    user: "melvin", // Utilisateur de BD
-    password: "12Melvin", // Mot de passe
-    database: "a2js_db", // Nom de la BD
-    host : "192.168.1.36",
-    port: "3308",
+  connectionLimit: 10,
+  host: "localhost", // Serveur de BD
+  user: "root", // Utilisateur de BD
+  password: "",
+  database: "a2js_db", // Nom de la BD 
+  port: "3308",
+  //user: "melvin", // Utilisateur de BD
+  // password: "12Melvin", // Mot de passe
+  
+    // host : "192.168.1.36",
 });
+
+module.exports = pool;
+
 
 pool.getConnection((err, connection) => {
   if (err) throw err;
   console.log("Connection successfull");
 
-  //Exemple de requête SQL
+  /*Exemple de requête SQL
   connection.query('SELECT * FROM search_history', (err, results) => {
     if (err) {
       console.error('Erreur lors de l\'exécution de la requête SQL :', err);
@@ -24,7 +29,7 @@ pool.getConnection((err, connection) => {
     
    
     connection.release();
-  });
+  });*/
 });
 
 module.exports = pool;
