@@ -6,9 +6,9 @@ const pool = require('./db_connexion');
 // Base de données simple en mémoire
 let searchHistory = [];
 let datamap = [];
-
+/*
 // Route pour enregistrer une ville et ses détails dans l'historique
-router.post('/weather/history', (req, res) => {
+app.post('/weather/history', (req, res) => {
     const { city, details } = req.body;
     const { temp, description } = details;
     const createdAt = new Date();
@@ -26,7 +26,7 @@ router.post('/weather/history', (req, res) => {
 });
 
 // Route pour récupérer l'historique des recherches
-router.get('/weather/history', (req, res) => {
+app.get('/weather/history', (req, res) => {
     pool.query('SELECT city, temperature, description, DATE_FORMAT(created_at, "%d/%m/%Y %H:%i") AS created_at, userType FROM search_history', (error, results) => {
         if (error) {
             console.error('Erreur lors de la récupération des données météo:', error);
@@ -35,7 +35,7 @@ router.get('/weather/history', (req, res) => {
             res.status(200).json(results);
         }
     });
-});
+});*/
 
 
 
