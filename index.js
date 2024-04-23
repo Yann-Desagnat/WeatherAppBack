@@ -291,23 +291,9 @@ app.get('/api/getWeather', async (req, res) => {
         console.error('Error fetching weather alerts:', error);
         res.status(500).json({ message: 'Error fetching weather alerts' });
     }
-});
+});*/
 
-// Route pour récupérer les données météorologiques filtrées par pays et ville
-app.get('/api/getFilteredWeather', async (req, res) => {
-    const { country, city } = req.query;
-    try {
-        // Effectuez la requête appropriée vers l'API OpenWeatherMap en utilisant le pays et la ville fournis
-        const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city},${country}&appid=${apiKey}`);
-        const weatherData = response.data;
-        // Formattez les données de manière appropriée et renvoyez-les en tant que réponse JSON
-        res.json(weatherData);
-    } catch (error) {
-        console.error('Error fetching filtered weather data:', error);
-        res.status(500).json({ message: 'Error fetching filtered weather data' });
-    }
-});
-*/
+
 // Démarrage du serveur sur le port spécifié
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur le port ${PORT}`);
