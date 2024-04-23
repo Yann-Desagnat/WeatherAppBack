@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const cors = require("cors");
 const pool = require('./db_connexion');
 const weatherRoutes = require('./prevision_meteo_backend');
+const axios = require('axios');
 
 // Initialisation de l'application Express
 const app = express();
@@ -76,6 +77,52 @@ app.put('/updateUser', (req, res) => {
         res.status(404).json({ message: 'Utilisateur non trouvé.' });
     }
 });
+
+// Ajouter une ville favorite
+app.post('/addFavorite', (req, res) => {
+    const { userId, cityName } = req.body;
+    const query = 'INSERT INTO favorites (userId, cityName) VALUES (?, ?)';
+    pool.query(query, [userId, cityName], (err, result) => {
+        if (err) {
+            console.error('Erreur lors de l\'ajout d\'une ville favorite:', err);
+            res.status(500).send('Erreur lors de l\'ajout d\'une ville favorite');
+        } else {
+            res.status(201).send('Ville favorite ajoutée avec succès');
+        }
+    });
+});
+
+// Supprimer une ville favorite
+app.delete('/removeFavorite', (req, res) => {
+    const { userId, cityName } = req.body;
+    const query = 'DELETE FROM favorites WHERE userId = ? AND cityName = ?';
+    pool.query(query, [userId, cityName], (err, result) => {
+        if (err) {
+            console.error('Erreur lors de la suppression d\'une ville favorite:', err);
+            res.status(500).send('Erreur lors de la suppression d\'une ville favorite');
+        } else {
+            res.status(200).send('Ville favorite supprimée avec succès');
+        }
+    });
+});
+
+// Récupérer les villes favorites de l'utilisateur
+app.get('/getFavorites', (req, res) => {
+    const userId = req.session.userId; // Supposons que l'ID de l'utilisateur soit stocké dans la session
+    if (!userId) {
+        return res.status(401).json({ message: 'Authentification requise' });
+    }
+    const query = 'SELECT cityName FROM favorites WHERE userId = ?';
+    pool.query(query, [userId], (err, results) => {
+        if (err) {
+            console.error('Erreur lors de la récupération des villes favorites:', err);
+            res.status(500).json({ message: 'Erreur lors de la récupération des villes favorites' });
+        } else {
+            res.status(200).json(results.map(row => row.cityName));
+        }
+    });
+});
+
 
 
 
@@ -218,6 +265,49 @@ app.get('/favoris', (req, res) => {
     }
 });
 
+
+/*Route pour obtenir des alertes météorologiques globales
+app.get('/api/getWeather', async (req, res) => {
+    const apiKey = "ae389c751139d10e6c783635a12a3b6e";
+    
+    try {
+        // Définir les coordonnées de Paris par défaut
+        const defaultLatitude = 48.8566;
+        const defaultLongitude = 2.3522;
+        console.log("add");
+        
+        // Effectuer la requête vers l'API OpenWeatherMap en utilisant les coordonnées par défaut
+        const response = await axios.get(`https://api.openweathermap.org/data/2.5/onecall?lat=${defaultLatitude}&lon=${defaultLongitude}&exclude=current,minutely,hourly,daily&appid=${apiKey}`);
+        const alerts = response.data.alerts.map(alert => ({
+            title: alert.event,
+            start: new Date(alert.start * 1000), // Convertir le temps Unix en JS Date
+            end: new Date(alert.end * 1000),     // Convertir le temps Unix en JS Date
+            description: alert.description,
+            color: 'red', // Définir la couleur pour les alertes météorologiques
+        }));
+
+        res.json(alerts);
+    } catch (error) {
+        console.error('Error fetching weather alerts:', error);
+        res.status(500).json({ message: 'Error fetching weather alerts' });
+    }
+});
+
+// Route pour récupérer les données météorologiques filtrées par pays et ville
+app.get('/api/getFilteredWeather', async (req, res) => {
+    const { country, city } = req.query;
+    try {
+        // Effectuez la requête appropriée vers l'API OpenWeatherMap en utilisant le pays et la ville fournis
+        const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city},${country}&appid=${apiKey}`);
+        const weatherData = response.data;
+        // Formattez les données de manière appropriée et renvoyez-les en tant que réponse JSON
+        res.json(weatherData);
+    } catch (error) {
+        console.error('Error fetching filtered weather data:', error);
+        res.status(500).json({ message: 'Error fetching filtered weather data' });
+    }
+});
+*/
 // Démarrage du serveur sur le port spécifié
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur le port ${PORT}`);
