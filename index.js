@@ -33,16 +33,41 @@ app.get('/', (req, res) => {
     res.status(200).send('Le serveur est opérationnel');
 });
 
-app.post('/register', async (req, res) => {
-    const { username, email, password } = req.body;
-    const existingUser = users.find(user => user.email === email);
-    if (existingUser) {
-        return res.status(400).json({ message: 'Cet utilisateur existe déjà.' });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    users.push({ username, email, password: hashedPassword });
-    res.status(201).json({ message: 'Utilisateur inscrit avec succès.' });
+app.post('/', (req, res) => {
+    res.status(200).send('Le serveur est opérationnel');
 });
+
+
+// Route pour l'inscription
+// Route pour l'inscription
+app.post('/register', (req, res) => {
+    // Récupérer les données du corps de la requête POST
+    const { username, email, password, city, country } = req.body;
+
+    // Hasher le mot de passe
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ message: 'Une erreur est survenue lors de l\'inscription.' });
+        }
+
+        // Insérer l'utilisateur dans la base de données
+        pool.query(
+            'INSERT INTO users (username, email, password, created_at, city, country) VALUES (?, ?, ?, ?, ?, ?)',
+            [username, email, hashedPassword, new Date(), city, country],
+            (err, results) => {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).json({ message: 'Une erreur est survenue lors de l\'inscription.' });
+                }
+
+                // Utilisateur inscrit avec succès
+                res.status(201).json({ message: 'Utilisateur inscrit avec succès.' });
+            }
+        );
+    });
+});
+
 
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
@@ -265,33 +290,23 @@ app.get('/favoris', (req, res) => {
     }
 });
 
+app.post('/sendFeedback', (req, res) => {
+    const feedback = req.body.feedback;
+    // Affiche le feedback dans la console du serveur
+    console.log('Feedback reçu:', feedback);
+    // Insérer le feedback dans la base de données
+    const sql = 'INSERT INTO feedbacks (feedback_text) VALUES (?)';
+    connection.query(sql, [feedback], (err, result) => {
+        if (err) {
+            console.error('Erreur lors de l\'insertion du feedback dans la base de données :', err);
+            res.status(500).json({ error: 'Erreur lors du traitement du commentaire.' });
+            return;
+        }
+        console.log('Feedback inséré avec succès dans la base de données');
+        res.status(200).json({ message: 'Feedback inséré avec succès.' });
+    });
+});
 
-/*Route pour obtenir des alertes météorologiques globales
-app.get('/api/getWeather', async (req, res) => {
-    const apiKey = "ae389c751139d10e6c783635a12a3b6e";
-    
-    try {
-        // Définir les coordonnées de Paris par défaut
-        const defaultLatitude = 48.8566;
-        const defaultLongitude = 2.3522;
-        console.log("add");
-        
-        // Effectuer la requête vers l'API OpenWeatherMap en utilisant les coordonnées par défaut
-        const response = await axios.get(`https://api.openweathermap.org/data/2.5/onecall?lat=${defaultLatitude}&lon=${defaultLongitude}&exclude=current,minutely,hourly,daily&appid=${apiKey}`);
-        const alerts = response.data.alerts.map(alert => ({
-            title: alert.event,
-            start: new Date(alert.start * 1000), // Convertir le temps Unix en JS Date
-            end: new Date(alert.end * 1000),     // Convertir le temps Unix en JS Date
-            description: alert.description,
-            color: 'red', // Définir la couleur pour les alertes météorologiques
-        }));
-
-        res.json(alerts);
-    } catch (error) {
-        console.error('Error fetching weather alerts:', error);
-        res.status(500).json({ message: 'Error fetching weather alerts' });
-    }
-});*/
 
 
 // Démarrage du serveur sur le port spécifié
