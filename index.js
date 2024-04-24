@@ -6,6 +6,7 @@ const cors = require("cors");
 const pool = require('./db_connexion');
 const weatherRoutes = require('./prevision_meteo_backend');
 const axios = require('axios');
+const jwt = require('jsonwebtoken'); 
 
 // Initialisation de l'application Express
 const app = express();
@@ -33,48 +34,36 @@ app.get('/', (req, res) => {
     res.status(200).send('Le serveur est opérationnel');
 });
 
-app.post('/', (req, res) => {
-    res.status(200).send('Le serveur est opérationnel');
-});
-
-
-// Route pour l'inscription
-// Route pour l'inscription
 app.post('/register', (req, res) => {
-    // Récupérer les données du corps de la requête POST
     const { username, email, password, city, country } = req.body;
 
-    // Hasher le mot de passe
-    bcrypt.hash(password, 10, (err, hashedPassword) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ message: 'Une erreur est survenue lors de l\'inscription.' });
+    // Log received user data
+    console.log('Received user data:', { username, email, password, city, country });
+
+    // Insert user data into the database
+    pool.query('INSERT INTO users (username, email, password, city, country) VALUES (?, ?, ?, ?, ?)', [username, email, password, city, country], (error, results) => {
+        if (error) {
+            console.error('Error registering user:', error);
+            return res.status(500).json({ error: 'Error registering user' });
         }
-
-        // Insérer l'utilisateur dans la base de données
-        pool.query(
-            'INSERT INTO users (username, email, password, created_at, city, country) VALUES (?, ?, ?, ?, ?, ?)',
-            [username, email, hashedPassword, new Date(), city, country],
-            (err, results) => {
-                if (err) {
-                    console.error(err);
-                    return res.status(500).json({ message: 'Une erreur est survenue lors de l\'inscription.' });
-                }
-
-                // Utilisateur inscrit avec succès
-                res.status(201).json({ message: 'Utilisateur inscrit avec succès.' });
-            }
-        );
+        console.log('User registered successfully');
+        res.status(200).json({ message: 'User registered successfully' });
     });
 });
-
 
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
     const user = users.find(user => user.email === email);
     if (user && bcrypt.compareSync(password, user.password)) {
         req.session.userType = 'connecté';
-        res.status(200).json({ message: 'Connexion réussie.' });
+        res.status(200).json({ message: 'Connexion réussie.', 
+                            userId: user._id,
+                            token: jwt.sign(
+                                { userId: user._id },
+                                'RANDOM_TOKEN_SECRET',
+                                { expiresIn: '24h' }
+        )
+    });
     } else {
         res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
     }
@@ -290,24 +279,71 @@ app.get('/favoris', (req, res) => {
     }
 });
 
-app.post('/sendFeedback', (req, res) => {
-    const feedback = req.body.feedback;
-    // Affiche le feedback dans la console du serveur
-    console.log('Feedback reçu:', feedback);
-    // Insérer le feedback dans la base de données
-    const sql = 'INSERT INTO feedbacks (feedback_text) VALUES (?)';
-    connection.query(sql, [feedback], (err, result) => {
-        if (err) {
-            console.error('Erreur lors de l\'insertion du feedback dans la base de données :', err);
-            res.status(500).json({ error: 'Erreur lors du traitement du commentaire.' });
-            return;
-        }
-        console.log('Feedback inséré avec succès dans la base de données');
-        res.status(200).json({ message: 'Feedback inséré avec succès.' });
-    });
+app.get('/idGet', authToken, (req, res)=>{
+    const token = req.headers.authorization.split(' ')[1];
+       const decodedToken = jwt.verify(token, 'RANDOM_TOKEN_SECRET');
+       const userId = decodedToken.userId;
+       res.status(200).json(userId)
+    
+})
+
+
+/*Route pour obtenir des alertes météorologiques globales
+app.get('/api/getWeather', async (req, res) => {
+    const apiKey = "ae389c751139d10e6c783635a12a3b6e";
+    
+    try {
+        // Définir les coordonnées de Paris par défaut
+        const defaultLatitude = 48.8566;
+        const defaultLongitude = 2.3522;
+        console.log("add");
+        
+        // Effectuer la requête vers l'API OpenWeatherMap en utilisant les coordonnées par défaut
+        const response = await axios.get(`https://api.openweathermap.org/data/2.5/onecall?lat=${defaultLatitude}&lon=${defaultLongitude}&exclude=current,minutely,hourly,daily&appid=${apiKey}`);
+        const alerts = response.data.alerts.map(alert => ({
+            title: alert.event,
+            start: new Date(alert.start * 1000), // Convertir le temps Unix en JS Date
+            end: new Date(alert.end * 1000),     // Convertir le temps Unix en JS Date
+            description: alert.description,
+            color: 'red', // Définir la couleur pour les alertes météorologiques
+        }));
+
+        res.json(alerts);
+    } catch (error) {
+        console.error('Error fetching weather alerts:', error);
+        res.status(500).json({ message: 'Error fetching weather alerts' });
+    }
 });
 
+// Route pour récupérer les données météorologiques filtrées par pays et ville
+app.get('/api/getFilteredWeather', async (req, res) => {
+    const { country, city } = req.query;
+    try {
+        // Effectuez la requête appropriée vers l'API OpenWeatherMap en utilisant le pays et la ville fournis
+        const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city},${country}&appid=${apiKey}`);
+        const weatherData = response.data;
+        // Formattez les données de manière appropriée et renvoyez-les en tant que réponse JSON
+        res.json(weatherData);
+    } catch (error) {
+        console.error('Error fetching filtered weather data:', error);
+        res.status(500).json({ message: 'Error fetching filtered weather data' });
+    }
+});
+*/
 
+function authToken(req, res, next){
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decodedToken = jwt.verify(token, 'RANDOM_TOKEN_SECRET');
+        const userId = decodedToken.userId;
+        req.auth = {
+            userId: userId
+        };
+     next();
+    } catch(error) {
+        res.status(401).json({ error });
+    }
+ };
 
 // Démarrage du serveur sur le port spécifié
 app.listen(PORT, () => {
