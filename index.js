@@ -24,6 +24,7 @@ app.use(session({
     sameSite: 'lax'
 }));
 
+//mot de passe est 12345A
 
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
@@ -274,8 +275,14 @@ app.post('/weather/history', verifyUser, (req, res) => {
 
 
 // Route pour récupérer l'historique des recherches
-app.get('/weather/history', (req, res) => {
-    pool.query('SELECT city, temperature, description, DATE_FORMAT(created_at, "%d/%m/%Y %H:%i") AS created_at, userType, user_id FROM search_history', (error, results) => {
+app.get('/weather/history',verifyUser, (req, res) => {
+    if (!req.user || !req.user.userId) {
+        return res.status(401).json({ message: 'Non autorisé' });
+    }
+    const userId = req.user.userId;
+    const query = 'SELECT city, temperature, description, DATE_FORMAT(created_at, "%d/%m/%Y %H:%i") AS created_at, userType, user_id FROM search_history WHERE user_id = ? ORDER BY created_at DESC';
+    
+    pool.query(query, [userId], (error, results) => {
         if (error) {
             console.error('Erreur lors de la récupération des données météo:', error);
             res.status(500).json({ message: 'Erreur lors de la récupération des données météo' });
