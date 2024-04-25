@@ -37,19 +37,31 @@ app.get('/', (req, res) => {
 app.post('/register', (req, res) => {
     const { username, email, password, city, country } = req.body;
 
-    // Log received user data
-    console.log('Received user data:', { username, email, password, city, country });
-
-    // Insert user data into the database
-    pool.query('INSERT INTO users (username, email, password, city, country) VALUES (?, ?, ?, ?, ?)', [username, email, password, city, country], (error, results) => {
+    // Vérifier si l'e-mail existe déjà dans la base de données
+    pool.query('SELECT * FROM users WHERE email = ?', [email], (error, results) => {
         if (error) {
-            console.error('Error registering user:', error);
+            console.error('Error checking email existence:', error);
             return res.status(500).json({ error: 'Error registering user' });
         }
-        console.log('User registered successfully');
-        res.status(200).json({ message: 'User registered successfully' });
+        
+        if (results.length > 0) {
+            // L'utilisateur existe déjà, renvoyer une erreur
+            console.error('Email already exists:', email);
+            return res.status(400).json({ error: 'Email already exists' });
+        }
+
+        // L'e-mail est unique, procéder à l'insertion dans la base de données
+        pool.query('INSERT INTO users (username, email, password, city, country) VALUES (?, ?, ?, ?, ?)', [username, email, password, city, country], (error, results) => {
+            if (error) {
+                console.error('Error registering user:', error);
+                return res.status(500).json({ error: 'Error registering user' });
+            }
+            console.log('User registered successfully');
+            res.status(200).json({ message: 'User registered successfully' });
+        });
     });
 });
+
 
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
@@ -95,7 +107,7 @@ app.put('/updateUser', (req, res) => {
 // Ajouter une ville favorite
 app.post('/addFavorite', (req, res) => {
     const { userId, cityName } = req.body;
-    const query = 'INSERT INTO favorites (userId, cityName) VALUES (?, ?)';
+    const query = 'INSERT INTO favoris (userId, cityName, countrieName) VALUES (?, ?)';
     pool.query(query, [userId, cityName], (err, result) => {
         if (err) {
             console.error('Erreur lors de l\'ajout d\'une ville favorite:', err);
@@ -109,7 +121,7 @@ app.post('/addFavorite', (req, res) => {
 // Supprimer une ville favorite
 app.delete('/removeFavorite', (req, res) => {
     const { userId, cityName } = req.body;
-    const query = 'DELETE FROM favorites WHERE userId = ? AND cityName = ?';
+    const query = 'DELETE FROM favoris WHERE userId = ? AND cityName = ?';
     pool.query(query, [userId, cityName], (err, result) => {
         if (err) {
             console.error('Erreur lors de la suppression d\'une ville favorite:', err);
@@ -126,7 +138,7 @@ app.get('/getFavorites', (req, res) => {
     if (!userId) {
         return res.status(401).json({ message: 'Authentification requise' });
     }
-    const query = 'SELECT cityName FROM favorites WHERE userId = ?';
+    const query = 'SELECT cityName FROM favoris WHERE userId = ?';
     pool.query(query, [userId], (err, results) => {
         if (err) {
             console.error('Erreur lors de la récupération des villes favorites:', err);

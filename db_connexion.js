@@ -1,14 +1,14 @@
 const mysql = require('mysql');
 const pool = mysql.createPool({
   connectionLimit: 10,
-  //host: "localhost", // Serveur de BD
-  //user: "root", // Utilisateur de BD
-  //password: "",
+  host: "localhost", // Serveur de BD
+  user: "root", // Utilisateur de BD
+  password: "",
   database: "a2js_db", // Nom de la BD 
   port: "3308",
-  user: "melvin", // Utilisateur de BD
-  password: "12Melvin", // Mot de passe
-  host : "192.168.1.29",
+  //user: "melvin", // Utilisateur de BD
+ // password: "12Melvin", // Mot de passe
+ // host : "192.168.1.29",
 });
 
 module.exports = pool;
