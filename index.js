@@ -181,7 +181,7 @@ app.post('/weather/data_map', verifyUser, (req, res) => {
     console.log(req.user);  // Vérifiez ce qui est exactement dans req.user
 
     const { latitude, longitude, locationName } = req.body;
-    const user_id = req.user.userId;  // Utilisez l'userID manuellement défini
+    const user_id = req.user.userId; 
     console.log("userID avant insertion:", user_id);  
     console.log("Données reçues:", latitude, longitude, locationName, user_id);
     const query = "INSERT INTO dataMap (latitude, longitude, locationName, userId) VALUES (?, ?, ?, ?)";
