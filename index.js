@@ -24,6 +24,8 @@ app.use(session({
     sameSite: 'lax'
 }));
 
+// partie utilisateur
+
 //mot de passe est 12345A
 
 app.post('/login', (req, res) => {
@@ -145,40 +147,8 @@ app.put('/updateUser', (req, res) => {
     }
 });
 
-//gerer la map
-
-// recuperer data_map info sur les country
-app.post('/weather/data_map', (req, res) => {
-    const { latitude, longitude, locationName, userId} = req.body;
-
-    
-    console.log("Données reçues:", latitude, longitude, locationName, userId);
-
-    const query = "INSERT INTO dataMap (latitude, longitude, locationName, userId) VALUES (?, ?, ?, ?)";
-    const values = [latitude, longitude, locationName, userId];
-    pool.query(query, values, (err, result) => {
-        if (err) {
-            console.error('Erreur lors de l\'insertion des données datamap:', err);
-            res.status(500).send('Erreur lors de l\'insertion des données datamap');
-        } else {
-            res.status(200).json({ message: "Données reçues et traitées avec succès" });
-        }
-    });
-});
 
 
-
-// Route pour récupérer data
-app.get('/weather/data_map', (req, res) => {
-    pool.query('SELECT latitude, longitude, locationName, userId FROM dataMap', (error, results) => {
-        if (error) {
-            console.error('Erreur lors de la récupération des données datamap:', error);
-            res.status(500).json({ message: 'Erreur lors de la récupération des données datamap' });
-        } else {
-            res.status(200).json(results);
-        }
-    });
-});
 // gestion verification
 function verifyUser(req, res, next) {
     const authHeader = req.headers.authorization;
@@ -203,6 +173,44 @@ function verifyUser(req, res, next) {
         next();
     }
 }
+
+//gerer la carte météo
+
+// recuperer data_map info sur les country
+app.post('/weather/data_map', verifyUser, (req, res) => {
+    console.log(req.user);  // Vérifiez ce qui est exactement dans req.user
+
+    const { latitude, longitude, locationName } = req.body;
+    const user_id = req.user.userId;  // Utilisez l'userID manuellement défini
+    console.log("userID avant insertion:", user_id);  
+    console.log("Données reçues:", latitude, longitude, locationName, user_id);
+    const query = "INSERT INTO dataMap (latitude, longitude, locationName, userId) VALUES (?, ?, ?, ?)";
+    const values = [latitude, longitude, locationName, user_id];
+    pool.query(query, values, (err, result) => {
+        if (err) {
+            console.error('Erreur lors de l\'insertion des données datamap:', err);
+            res.status(500).send('Erreur lors de l\'insertion des données datamap');
+        } else {
+            res.status(200).json({ message: "Données reçues et traitées avec succès" });
+        }
+    });
+});
+
+
+
+
+// Route pour récupérer data de la map
+app.get('/weather/data_map', (req, res) => {
+    pool.query('SELECT latitude, longitude, locationName, userId FROM dataMap', (error, results) => {
+        if (error) {
+            console.error('Erreur lors de la récupération des données datamap:', error);
+            res.status(500).json({ message: 'Erreur lors de la récupération des données datamap' });
+        } else {
+            res.status(200).json(results);
+        }
+    });
+});
+
 
 // gestion historique
 
@@ -372,49 +380,6 @@ app.get('/idGet', authToken, (req, res)=>{
     
 })
 
-
-/*Route pour obtenir des alertes météorologiques globales
-app.get('/api/getWeather', async (req, res) => {
-    const apiKey = "ae389c751139d10e6c783635a12a3b6e";
-    
-    try {
-        // Définir les coordonnées de Paris par défaut
-        const defaultLatitude = 48.8566;
-        const defaultLongitude = 2.3522;
-        console.log("add");
-        
-        // Effectuer la requête vers l'API OpenWeatherMap en utilisant les coordonnées par défaut
-        const response = await axios.get(`https://api.openweathermap.org/data/2.5/onecall?lat=${defaultLatitude}&lon=${defaultLongitude}&exclude=current,minutely,hourly,daily&appid=${apiKey}`);
-        const alerts = response.data.alerts.map(alert => ({
-            title: alert.event,
-            start: new Date(alert.start * 1000), // Convertir le temps Unix en JS Date
-            end: new Date(alert.end * 1000),     // Convertir le temps Unix en JS Date
-            description: alert.description,
-            color: 'red', // Définir la couleur pour les alertes météorologiques
-        }));
-
-        res.json(alerts);
-    } catch (error) {
-        console.error('Error fetching weather alerts:', error);
-        res.status(500).json({ message: 'Error fetching weather alerts' });
-    }
-});
-
-// Route pour récupérer les données météorologiques filtrées par pays et ville
-app.get('/api/getFilteredWeather', async (req, res) => {
-    const { country, city } = req.query;
-    try {
-        // Effectuez la requête appropriée vers l'API OpenWeatherMap en utilisant le pays et la ville fournis
-        const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city},${country}&appid=${apiKey}`);
-        const weatherData = response.data;
-        // Formattez les données de manière appropriée et renvoyez-les en tant que réponse JSON
-        res.json(weatherData);
-    } catch (error) {
-        console.error('Error fetching filtered weather data:', error);
-        res.status(500).json({ message: 'Error fetching filtered weather data' });
-    }
-});
-*/
 
 function authToken(req, res, next){
     try {
