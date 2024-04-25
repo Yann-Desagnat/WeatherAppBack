@@ -49,7 +49,8 @@ app.post('/login', (req, res) => {
                 if (isMatch) {
                     // Générer un token JWT pour l'utilisateur
                     const token = jwt.sign(
-                        { userId: user.id }, // Assurez-vous que 'id' est le nom de la colonne correct dans votre table 'users'
+                        
+                        { userId: user.id, userType: 'connecté' }, 
                         'RANDOM_TOKEN_SECRET',
                         { expiresIn: '24h' }
                     );
@@ -233,15 +234,16 @@ function verifyUser(req, res, next) {
                 console.error('Invalid Token:', err);
                 req.user = { userType: 'anonymous', userId: null };
             } else {
+                console.log(decoded);
                 req.user = { 
                     userId: decoded.userId,
-                    userType: decoded.userType 
+                    userType: 'connecté',
                 };
+                console.log(req.user.userType);
             }
             next(); 
         });
     } else {
-       
         req.user = { userType: 'anonymous', userId: null };
         next();
     }
@@ -253,11 +255,13 @@ function verifyUser(req, res, next) {
 app.post('/weather/history', verifyUser, (req, res) => {
     const { city, details } = req.body;
     const { temp, description } = details;
-    const userType = req.user.userType;  // Extracted from JWT
+    const userType = req.user.userType;
+    const user_id =  req.user.userId;
     const createdAt = new Date();
 
-    const query = "INSERT INTO search_history (city, temperature, description, created_at, userType) VALUES (?, ?, ?, ?, ?)";
-    const values = [city, temp, description, createdAt, userType];
+    const query = "INSERT INTO search_history (city, temperature, description,user_id, created_at, userType) VALUES (?, ?,?, ?, ?, ?)";
+    const values = [city, temp, description, user_id, createdAt, userType];
+
 
     pool.query(query, values, (err, result) => {
         if (err) {
@@ -271,7 +275,7 @@ app.post('/weather/history', verifyUser, (req, res) => {
 
 // Route pour récupérer l'historique des recherches
 app.get('/weather/history', (req, res) => {
-    pool.query('SELECT city, temperature, description, DATE_FORMAT(created_at, "%d/%m/%Y %H:%i") AS created_at, userType FROM search_history', (error, results) => {
+    pool.query('SELECT city, temperature, description, DATE_FORMAT(created_at, "%d/%m/%Y %H:%i") AS created_at, userType, user_id FROM search_history', (error, results) => {
         if (error) {
             console.error('Erreur lors de la récupération des données météo:', error);
             res.status(500).json({ message: 'Erreur lors de la récupération des données météo' });
