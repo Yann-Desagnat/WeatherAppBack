@@ -24,8 +24,53 @@ app.use(session({
     sameSite: 'lax'
 }));
 
-// Base de données simple en mémoire pour les utilisateurs
-let users = [];
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
+
+    // Rechercher l'utilisateur dans la base de données par email
+    pool.query('SELECT * FROM users WHERE email = ?', [email], (error, results) => {
+        if (error) {
+            console.error('Error fetching user:', error);
+            return res.status(500).json({ error: 'Erreur lors de la recherche de l\'utilisateur' });
+        }
+
+        // Vérifier si un utilisateur avec cet email a été trouvé
+        if (results.length > 0) {
+            const user = results[0];
+
+            // Vérifier le mot de passe
+            bcrypt.compare(password, user.password, (err, isMatch) => {
+                if (err) {
+                    console.error('Error comparing password:', err);
+                    return res.status(500).json({ error: 'Erreur lors de la vérification du mot de passe' });
+                }
+
+                if (isMatch) {
+                    // Générer un token JWT pour l'utilisateur
+                    const token = jwt.sign(
+                        { userId: user.id }, // Assurez-vous que 'id' est le nom de la colonne correct dans votre table 'users'
+                        'RANDOM_TOKEN_SECRET',
+                        { expiresIn: '24h' }
+                    );
+
+                    req.session.user = { id: user.id, email: user.email }; // Stocker des informations utiles dans la session
+                    req.session.userType = 'connecté'; // Vous pourriez vouloir stocker plus d'infos selon le rôle de l'utilisateur
+
+                    res.status(200).json({
+                        message: 'Connexion réussie.',
+                        userId: user.id,
+                        token: token
+                    });
+                } else {
+                    res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
+                }
+            });
+        } else {
+            res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
+        }
+    });
+});
+
 
 // Routes
 app.use('/api', weatherRoutes);
@@ -33,34 +78,46 @@ app.use('/api', weatherRoutes);
 app.get('/', (req, res) => {
     res.status(200).send('Le serveur est opérationnel');
 });
-
 app.post('/register', (req, res) => {
     const { username, email, password, city, country } = req.body;
 
-    // Vérifier si l'e-mail existe déjà dans la base de données
-    pool.query('SELECT * FROM users WHERE email = ?', [email], (error, results) => {
+    // Vérifier si tous les champs requis sont fournis
+    if (!username || !email || !password || !city || !country) {
+        return res.status(400).json({ error: 'Tous les champs doivent être remplis' });
+    }
+
+    // Vérifier si l'email existe déjà
+    pool.query('SELECT email FROM users WHERE email = ?', [email], (error, results) => {
         if (error) {
-            console.error('Error checking email existence:', error);
-            return res.status(500).json({ error: 'Error registering user' });
+            console.error('Error checking user email:', error);
+            return res.status(500).json({ error: 'Erreur lors de la vérification de l\'email' });
         }
         
         if (results.length > 0) {
-            // L'utilisateur existe déjà, renvoyer une erreur
-            console.error('Email already exists:', email);
-            return res.status(400).json({ error: 'Email already exists' });
+            return res.status(409).json({ error: 'Cet email est déjà utilisé' });
         }
 
-        // L'e-mail est unique, procéder à l'insertion dans la base de données
-        pool.query('INSERT INTO users (username, email, password, city, country) VALUES (?, ?, ?, ?, ?)', [username, email, password, city, country], (error, results) => {
-            if (error) {
-                console.error('Error registering user:', error);
-                return res.status(500).json({ error: 'Error registering user' });
+        // Si l'email n'existe pas, continuez avec l'inscription
+        const saltRounds = 10;
+        bcrypt.hash(password, saltRounds, (err, hashedPassword) => {
+            if (err) {
+                return res.status(500).json({ error: 'Erreur lors du hashage du mot de passe' });
             }
-            console.log('User registered successfully');
-            res.status(200).json({ message: 'User registered successfully' });
+
+            // Insérer les données de l'utilisateur dans la base de données
+            pool.query('INSERT INTO users (username, email, password, city, country) VALUES (?, ?, ?, ?, ?)', 
+            [username, email, hashedPassword, city, country], (error, results) => {
+                if (error) {
+                    console.error('Error registering user:', error);
+                    return res.status(500).json({ error: 'Erreur lors de l\'enregistrement de l\'utilisateur' });
+                }
+                console.log('User registered successfully');
+                res.status(200).json({ message: 'Utilisateur inscrit avec succès' });
+            });
         });
     });
 });
+
 
 
 app.post('/login', (req, res) => {
