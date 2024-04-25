@@ -145,53 +145,7 @@ app.put('/updateUser', (req, res) => {
     }
 });
 
-// Ajouter une ville favorite
-app.post('/addFavorite', (req, res) => {
-    const { userId, cityName } = req.body;
-    const query = 'INSERT INTO favoris (userId, cityName, countrieName) VALUES (?, ?)';
-    pool.query(query, [userId, cityName], (err, result) => {
-        if (err) {
-            console.error('Erreur lors de l\'ajout d\'une ville favorite:', err);
-            res.status(500).send('Erreur lors de l\'ajout d\'une ville favorite');
-        } else {
-            res.status(201).send('Ville favorite ajoutée avec succès');
-        }
-    });
-});
-
-// Supprimer une ville favorite
-app.delete('/removeFavorite', (req, res) => {
-    const { userId, cityName } = req.body;
-    const query = 'DELETE FROM favoris WHERE userId = ? AND cityName = ?';
-    pool.query(query, [userId, cityName], (err, result) => {
-        if (err) {
-            console.error('Erreur lors de la suppression d\'une ville favorite:', err);
-            res.status(500).send('Erreur lors de la suppression d\'une ville favorite');
-        } else {
-            res.status(200).send('Ville favorite supprimée avec succès');
-        }
-    });
-});
-
-// Récupérer les villes favorites de l'utilisateur
-app.get('/getFavorites', (req, res) => {
-    const userId = req.session.userId; // Supposons que l'ID de l'utilisateur soit stocké dans la session
-    if (!userId) {
-        return res.status(401).json({ message: 'Authentification requise' });
-    }
-    const query = 'SELECT cityName FROM favoris WHERE userId = ?';
-    pool.query(query, [userId], (err, results) => {
-        if (err) {
-            console.error('Erreur lors de la récupération des villes favorites:', err);
-            res.status(500).json({ message: 'Erreur lors de la récupération des villes favorites' });
-        } else {
-            res.status(200).json(results.map(row => row.cityName));
-        }
-    });
-});
-
-
-
+//gerer la map
 
 // recuperer data_map info sur les country
 app.post('/weather/data_map', (req, res) => {
@@ -225,7 +179,7 @@ app.get('/weather/data_map', (req, res) => {
         }
     });
 });
-// gestion historique
+// gestion verification
 function verifyUser(req, res, next) {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -250,6 +204,7 @@ function verifyUser(req, res, next) {
     }
 }
 
+// gestion historique
 
 
 // Route pour enregistrer une ville dans l'historique
@@ -292,36 +247,71 @@ app.get('/weather/history',verifyUser, (req, res) => {
     });
 });
 
-/*Route pour enregistrer une ville dans l'historique
-app.post('/weather/history', (req, res) => {
-    const { city, details } = req.body;
-    const { temp, description } = details;
-    const createdAt = new Date();
-    const userType = req.session.userType || 'anonymous';
-    const query = "INSERT INTO search_history (city, temperature, description, created_at, userType) VALUES (?, ?, ?, ?, ?)";
-    const values = [city, temp, description, createdAt, userType];
-    pool.query(query, values, (err, result) => {
-        if (err) {
-            console.error('Erreur lors de l\'insertion des données météo:', err);
-            res.status(500).send('Erreur lors de l\'insertion des données météo');
-        } else {
-            res.status(200).send('Données météo insérées avec succès');
-        }
-    });
-});
+// gerer les favories 
 
-// Route pour récupérer l'historique des recherches
-app.get('/weather/history', (req, res) => {
-    pool.query('SELECT city, temperature, description, DATE_FORMAT(created_at, "%d/%m/%Y %H:%i") AS created_at, userType FROM search_history', (error, results) => {
-        if (error) {
-            console.error('Erreur lors de la récupération des données météo:', error);
-            res.status(500).json({ message: 'Erreur lors de la récupération des données météo' });
+
+app.get('/favoris', verifyUser, (req, res) => {
+    if (!req.user || req.user.userType !== 'connecté') {
+        return res.status(401).json({ message: 'Authentification requise' });
+    }
+    const userId = req.user.userId;
+    const query = 'SELECT city, country FROM favoris WHERE user_id = ?';
+    pool.query(query, [userId], (err, results) => {
+        if (err) {
+            console.error('Erreur lors de la récupération des favoris:', err);
+            res.status(500).json({ message: 'Erreur lors de la récupération des favoris' });
         } else {
             res.status(200).json(results);
         }
     });
 });
-*/
+
+
+
+//Ajouter une ville favorite
+app.post('/addFavorite', verifyUser, (req, res) => {
+    if (!req.user || req.user.userType !== 'connecté') {
+        return res.status(401).json({ message: 'Authentification requise' });
+    }
+
+    const  user_id = req.user.userId;
+      const{ city, country} = req.body;
+
+      if (!city || !country) {
+        return res.status(400).json({ message: 'Les champs ville et pays sont requis.' });
+    }
+    const query = 'INSERT INTO favoris (user_id, city, country) VALUES (?, ?, ?)';
+    pool.query(query, [user_id, city, country], (err, result) => {
+        if (err) {
+            console.error('Erreur lors de l\'ajout de la ville et du pays:', err);
+            return res.status(500).json({ message: 'Erreur lors de l\'ajout des données' });
+        } else {
+            res.status(201).json({ message: 'Ville et pays ajoutée avec succès' });
+        }
+    });
+});
+
+// Supprimer favori
+app.delete('/removeFavorite', verifyUser, (req, res) => {
+    if (!req.user || req.user.userType !== 'connecté') {
+        return res.status(401).json({ message: 'Authentification requise' });
+    }
+
+    const user_id = req.user.userId; 
+    const { city, country } = req.body;
+    const query = 'DELETE FROM favoris WHERE user_id = ? AND city = ? AND country = ?';
+    pool.query(query, [user_id, city, country], (err, result) => {
+        if (err) {
+            console.error('Erreur lors de la suppression du favori:', err);
+            res.status(500).json({ message: 'Erreur lors de la suppression du favori' });
+        } else {
+            res.status(200).json({ message: 'Favori supprimé avec succès' });
+        }
+    });
+});
+
+
+
 // Route pour récupérer les pays les plus cliqués
 app.get('/weather/most_clicked_countries', (req, res) => {
     // Récupérer les données de /weather/data_map
@@ -346,10 +336,6 @@ app.get('/weather/most_clicked_countries', (req, res) => {
         }
     });
 });
-
-
-
-
 
 // Route pour récupérer les villes les plus cliquées
 app.get('/weather/most_clicked_cities', (req, res) => {
@@ -376,25 +362,7 @@ app.get('/weather/most_clicked_cities', (req, res) => {
     });
 });
 
-// Route pour récupérer les favoris de l'utilisateur connecté
-app.get('/favoris', (req, res) => {
-    // Vérifier si l'utilisateur est connecté
-    if (req.session.userType === 'connecté') {
-        // Récupérer les favoris de l'utilisateur depuis la base de données
-        const userId = req.session.userId; // Supposons que l'ID de l'utilisateur soit stocké dans la session
-        pool.query('SELECT * FROM favoris WHERE userId = ?', [userId], (error, results) => {
-            if (error) {
-                console.error('Erreur lors de la récupération des favoris de l\'utilisateur :', error);
-                res.status(500).json({ message: 'Erreur lors de la récupération des favoris de l\'utilisateur' });
-            } else {
-                res.status(200).json(results);
-            }
-        });
-    } else {
-        // L'utilisateur n'est pas connecté, renvoyer une erreur non autorisée
-        res.status(401).json({ message: 'Vous devez être connecté pour accéder à vos favoris' });
-    }
-});
+
 
 app.get('/idGet', authToken, (req, res)=>{
     const token = req.headers.authorization.split(' ')[1];
