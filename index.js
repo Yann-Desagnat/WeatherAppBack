@@ -24,6 +24,7 @@ app.use(session({
     sameSite: 'lax'
 }));
 
+
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
 
@@ -53,13 +54,12 @@ app.post('/login', (req, res) => {
                         { expiresIn: '24h' }
                     );
 
-                    req.session.user = { id: user.id, email: user.email }; // Stocker des informations utiles dans la session
-                    req.session.userType = 'connecté'; // Vous pourriez vouloir stocker plus d'infos selon le rôle de l'utilisateur
-
                     res.status(200).json({
                         message: 'Connexion réussie.',
                         userId: user.id,
-                        token: token
+                        token: token,
+                        userType: 'connecté'
+
                     });
                 } else {
                     res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
@@ -120,27 +120,9 @@ app.post('/register', (req, res) => {
 
 
 
-app.post('/login', (req, res) => {
-    const { email, password } = req.body;
-    const user = users.find(user => user.email === email);
-    if (user && bcrypt.compareSync(password, user.password)) {
-        req.session.userType = 'connecté';
-        res.status(200).json({ message: 'Connexion réussie.', 
-                            userId: user._id,
-                            token: jwt.sign(
-                                { userId: user._id },
-                                'RANDOM_TOKEN_SECRET',
-                                { expiresIn: '24h' }
-        )
-    });
-    } else {
-        res.status(401).json({ message: 'Email ou mot de passe incorrect.' });
-    }
-});
-
 app.delete('/deleteUser', (req, res) => {
-    const { username } = req.body;
-    const index = users.findIndex(user => user.username === username);
+    const { email } = req.body;
+    const user = users.find(user => user.email === email);
     if (index !== -1) {
         users.splice(index, 1);
         res.status(200).json({ message: 'Utilisateur supprimé avec succès.' });
@@ -241,10 +223,65 @@ app.get('/weather/data_map', (req, res) => {
         }
     });
 });
+// gestion historique
+function verifyUser(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        jwt.verify(token, 'RANDOM_TOKEN_SECRET', (err, decoded) => {
+            if (err) {
+                console.error('Invalid Token:', err);
+                req.user = { userType: 'anonymous', userId: null };
+            } else {
+                req.user = { 
+                    userId: decoded.userId,
+                    userType: decoded.userType 
+                };
+            }
+            next(); 
+        });
+    } else {
+       
+        req.user = { userType: 'anonymous', userId: null };
+        next();
+    }
+}
 
 
 
 // Route pour enregistrer une ville dans l'historique
+app.post('/weather/history', verifyUser, (req, res) => {
+    const { city, details } = req.body;
+    const { temp, description } = details;
+    const userType = req.user.userType;  // Extracted from JWT
+    const createdAt = new Date();
+
+    const query = "INSERT INTO search_history (city, temperature, description, created_at, userType) VALUES (?, ?, ?, ?, ?)";
+    const values = [city, temp, description, createdAt, userType];
+
+    pool.query(query, values, (err, result) => {
+        if (err) {
+            console.error('Error inserting weather data:', err);
+            return res.status(500).send('Error inserting weather data');
+        }
+        res.status(200).send('Weather data inserted successfully');
+    });
+});
+
+
+// Route pour récupérer l'historique des recherches
+app.get('/weather/history', (req, res) => {
+    pool.query('SELECT city, temperature, description, DATE_FORMAT(created_at, "%d/%m/%Y %H:%i") AS created_at, userType FROM search_history', (error, results) => {
+        if (error) {
+            console.error('Erreur lors de la récupération des données météo:', error);
+            res.status(500).json({ message: 'Erreur lors de la récupération des données météo' });
+        } else {
+            res.status(200).json(results);
+        }
+    });
+});
+
+/*Route pour enregistrer une ville dans l'historique
 app.post('/weather/history', (req, res) => {
     const { city, details } = req.body;
     const { temp, description } = details;
@@ -273,7 +310,7 @@ app.get('/weather/history', (req, res) => {
         }
     });
 });
-
+*/
 // Route pour récupérer les pays les plus cliqués
 app.get('/weather/most_clicked_countries', (req, res) => {
     // Récupérer les données de /weather/data_map
@@ -413,6 +450,7 @@ function authToken(req, res, next){
         res.status(401).json({ error });
     }
  };
+
 
 // Démarrage du serveur sur le port spécifié
 app.listen(PORT, () => {
