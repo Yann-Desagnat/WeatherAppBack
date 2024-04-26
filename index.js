@@ -101,14 +101,14 @@ app.post('/register', (req, res) => {
             return res.status(409).json({ error: 'Cet email est déjà utilisé' });
         }
 
-        // Si l'email n'existe pas, continuez avec l'inscription
+        // Si l'email n'existe pas alors l'inscription
         const saltRounds = 10;
         bcrypt.hash(password, saltRounds, (err, hashedPassword) => {
             if (err) {
                 return res.status(500).json({ error: 'Erreur lors du hashage du mot de passe' });
             }
 
-            // Insérer les données de l'utilisateur dans la base de données
+            // Insérer les données de l'utilisateur
             pool.query('INSERT INTO users (username, email, password, city, country) VALUES (?, ?, ?, ?, ?)', 
             [username, email, hashedPassword, city, country], (error, results) => {
                 if (error) {
@@ -138,7 +138,7 @@ app.post('/modification', (req, res) => {
             return res.status(409).json({ error: 'Cet email est déjà utilisé' });
         }
 
-        // Si l'email n'existe pas, continuez avec l'inscription
+        // Si l'email n'existe pas
         const saltRounds = 10;
         bcrypt.hash(password, saltRounds, (err, hashedPassword) => {
             if (err) {
@@ -156,7 +156,7 @@ app.post('/modification', (req, res) => {
                 if(!city){city = results2[0].city}
                 if(!country){country = results2[0].country}
 
-            // Insérer les données de l'utilisateur dans la base de données
+            // Insérer les données de l'utilisateur 
             pool.query('UPDATE users SET username = ?, email = ?, password = ?, city = ?, country = ?) WHERE userId = ?', 
             [username, email, hashedPassword, city, country, id], (error, results) => {
                 if (error) {
@@ -172,6 +172,28 @@ app.post('/modification', (req, res) => {
 });
 
 
+app.post('/comments', (req, res) => {
+    const { id, comment } = req.body;
+
+    // champs requis sont fournis
+    if (!comment ) {
+        return res.status(400).json({ error: 'Tous les champs doivent être remplis' });
+    }
+
+            // Insérer les données 
+            pool.query('INSERT INTO commentaire (user_id, Commentaire) VALUES (?, ?)', 
+            [id, comment], (error, results) => {
+                if (error) {
+                    console.error('Error sending comment:', error);
+                    return res.status(500).json({ error: 'Erreur lors de l\'envoie du commentaire' });
+                }
+                console.log('Comment sent successfully');
+                res.status(200).json({ message: 'Commentaire envoyé avec succès' });
+            });
+        });
+   
+
+
 app.delete('/deleteUser', (req, res) => {
     const { email } = req.body;
     const user = users.find(user => user.email === email);
@@ -182,6 +204,10 @@ app.delete('/deleteUser', (req, res) => {
         res.status(404).json({ message: 'Utilisateur non trouvé.' });
     }
 });
+
+
+
+
 
 app.put('/updateUser', (req, res) => {
     const { username, newUsername, newEmail } = req.body;
