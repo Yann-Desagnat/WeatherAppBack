@@ -122,6 +122,54 @@ app.post('/register', (req, res) => {
     });
 });
 
+app.post('/modification', (req, res) => {
+    const { id, username, email, password, city, country } = req.body;
+
+    
+
+    // Vérifier si l'email existe déjà
+    pool.query('SELECT email FROM users WHERE email = ?', [email], (error, results1) => {
+        if (error) {
+            console.error('Error checking user email:', error);
+            return res.status(500).json({ error: 'Erreur lors de la vérification de l\'email' });
+        }
+        
+        if (results.length > 0) {
+            return res.status(409).json({ error: 'Cet email est déjà utilisé' });
+        }
+
+        // Si l'email n'existe pas, continuez avec l'inscription
+        const saltRounds = 10;
+        bcrypt.hash(password, saltRounds, (err, hashedPassword) => {
+            if (err) {
+                return res.status(500).json({ error: 'Erreur lors du hashage du mot de passe' });
+            }
+            
+            pool.query('SELECT username, email, password, city, country FROM users WHERE userId = ?', [id], (error, results2) => {
+                if (error) {
+                    console.error('Error checking user email:', error);
+                    return res.status(500).json({ error: 'Erreur lors de la vérification de l\'email' });
+                }
+                if(!username){username = results2[0].username}
+                if(!email){email = results2[0].email}
+                if(!password){password = results2[0].password}
+                if(!city){city = results2[0].city}
+                if(!country){country = results2[0].country}
+
+            // Insérer les données de l'utilisateur dans la base de données
+            pool.query('UPDATE users SET username = ?, email = ?, password = ?, city = ?, country = ?) WHERE userId = ?', 
+            [username, email, hashedPassword, city, country, id], (error, results) => {
+                if (error) {
+                    console.error('Error modifying user:', error);
+                    return res.status(500).json({ error: 'Erreur lors de l\'enregistrement de l\'utilisateur' });
+                }
+                console.log('User modified successfully');
+                res.status(200).json({ message: 'Utilisateur modifié avec succès' });
+            });
+        });
+    })
+    });
+});
 
 
 app.delete('/deleteUser', (req, res) => {
@@ -377,7 +425,6 @@ app.get('/idGet', authToken, (req, res)=>{
        const decodedToken = jwt.verify(token, 'RANDOM_TOKEN_SECRET');
        const userId = decodedToken.userId;
        res.status(200).json(userId)
-    
 })
 
 
@@ -395,6 +442,58 @@ function authToken(req, res, next){
     }
  };
 
+ app.post('/cityCountry', (req, res) => {
+    if (!req.user || req.user.userType !== 'connecté') {
+        return res.status(401).json({ message: 'Authentification requise' });
+    }
+    const userId = req.user.userId;
+    const query = 'SELECT city, country FROM users WHERE user_id = ?';
+    pool.query(query, [userId], (err, results) => {
+        if (err) {
+            console.error('Erreur lors de la récupération des favoris:', err);
+            return res.status(500).json({ message: 'Erreur lors de la récupération des favoris' });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'Aucun utilisateur trouvé avec cet ID' });
+        }
+        const userCity = results[0].city;
+        const userCountry = results[0].country;
+        res.status(200).json({ city: userCity, country: userCountry });
+    });
+});
+
+/*app.get('/getData', (req, res) => {
+    const idUser = req.query.idUser; 
+    if (!idUser) {
+      return res.status(400).json({ error: 'idUser parameter is required' });
+    }
+
+    const sqlQuery = 'SELECT id, username, email, created_at, city, country FROM users WHERE id = ?'; 
+    pool.query(sqlQuery,[idUser], (error, results) => {
+      if (error) {
+        console.error('Error executing query:', error);
+        res.status(500).json({ error: 'An error occurred while retrieving data from the database' });
+      } else {
+        res.json(results); // Send the results as JSON
+      }
+    });
+  });*/
+
+  app.post('/getData', (req, res) => {
+    const { userId } = req.body;
+
+    // Rechercher l'utilisateur dans la base de données par email
+    pool.query('SELECT id, username, email, created_at, city, country FROM users WHERE id = ?', [userId], (error, results) => {
+        if (error) {
+            console.error('Error fetching user:', error);
+            return res.status(500).json({ error: 'Erreur lors de la recherche de l\'utilisateur' });
+        }else{
+            console.log(results[0, results])
+            res.json(results[0]);
+        }
+    });
+    
+});
 
 // Démarrage du serveur sur le port spécifié
 app.listen(PORT, () => {
